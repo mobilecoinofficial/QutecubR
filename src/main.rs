@@ -4,15 +4,21 @@ use image;
 use std::env;
 
 fn main() {
+    
+    // for now "API" is CLI only, format of:
+    //         aqrr stringtoencode inputfile outputfile
+    // no options or anything yet, autoscales to the size of output file based on string length
+
     // deal with arguments
-    // TODO(Opal): make a proper API
+    // TODO: make a proper API
     let text_input = env::args().nth(1)
         .expect("Expected a code to output.");
     let path_input = env::args().nth(2)
-        .expect("Expected a filename to output to.");
+        .expect("Expected an input file.");
+    let path_output = env::args().nth(3)
+        .expect("Expected an output file.");
 
     // generate QR code
-    // TODO(Opal): remove dependency on qrcode
     let code = QrCode::new(text_input).unwrap();
     
     let string = code.render::<char>()
@@ -24,13 +30,15 @@ fn main() {
     let qrcolors = code.to_colors();
 
     // hardcoding "modules" as 6x6 with center two b&w for now
-    // TODO(Opal): make "modules" size adjustable
+    // TODO: make "modules" size adjustable
+    // TODO: tweak module size, etc to be more readable
     let imgscale: usize = 6;
     let imgwidth: u32 = (code.width() * imgscale) as u32;
     println!("code.width: {}, code.width*imgwidth: {}", code.width(), code.width()*code.width());
     println!("imgwidth: {}, imgwidth*imgwidth: {}", imgwidth, imgwidth*imgwidth);
 
-    let mut imgbuf = image::ImageBuffer::new(imgwidth, imgwidth);
+    // make the qr mask to apply over image (frames)
+    let mut qr_mask = image::ImageBuffer::new(imgwidth, imgwidth);
 
     for x in 0..imgwidth {
         for y in 0..imgwidth {
@@ -44,7 +52,7 @@ fn main() {
             
             // make the "modules" transparent on outsides for the overlay to work
             // we want to keep alignment and timing patterns fully opaque
-            // NOTE(Opal): ALIGNMENT_PATTERN_POSITIONS in qrcode has useful info, can make this cleaner
+            // NOTE: ALIGNMENT_PATTERN_POSITIONS in qrcode has useful info, can make this cleaner
             let mut alpha: u8 = 0;
             if (x as i32/2i32)%3 == 1 && (y as i32/2)%3 == 1 {alpha = 255 } // centers
             if modulex == 6 || moduley == 6 { alpha = 255 } // timing pattern
@@ -54,23 +62,18 @@ fn main() {
             if modulex > code.width() - 10 && modulex < code.width() - 4
                 && moduley > code.width() - 10 && moduley < code.width() - 4 { alpha = 255 }
             
-
-            imgbuf.put_pixel(x,y,image::Rgba([color[0], color[1], color[2], alpha]));
-
+            // TODO: generate mask in a way that isn't embarassing
+            qr_mask.put_pixel(x,y,image::Rgba([color[0], color[1], color[2], alpha]));
         }
     }
 
-    
-    let mut baseimg = image::open("underlay.png").unwrap();
-    image::imageops::overlay(&mut baseimg, &imgbuf, 0, 0);
+    // grab base image and resize to our preferred output size
+    // TODO: maintain input/output aspect ratio and center
+    let baseimg = image::open(path_input).unwrap();
+    let mut resized = baseimg.resize(imgwidth, imgwidth, image::imageops::FilterType::CatmullRom);
 
+    // throw overlay on the base image... this fundamentally what we're doing here
+    image::imageops::overlay(&mut resized, &qr_mask, 0, 0);
 
-
-    //baseimg.save(path_input).unwrap();
-    imgbuf.save(path_input).unwrap();
-
-    // whatever bullshit to convert QrCode to imgbuf
-
-	
-	
+    resized.save(path_output).unwrap();	
 }
