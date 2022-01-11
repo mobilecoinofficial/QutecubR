@@ -1,6 +1,6 @@
 # AQRR
-Animated QR-code in Rust
-This is a tool for creating image and animated QR-codes.
+Animated QR-code in Rust  
+This is a tool for creating image and animated QR-codes.  
 It aims to be performant, flexible, and configurable enough to use in an automated fashion.
 
 Libraries (for now):  
