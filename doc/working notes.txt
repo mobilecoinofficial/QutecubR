@@ -3,6 +3,7 @@ This is a tool for creating image and animated QR-codes for use on websites. It 
 
 Specifically, this is inspired by amazing-qr, which is not performant enough to use, taking ~60 seconds to generate gifs. Better performance and MP4 support make it much more usable in the wild.
 
+
 Buildup is roughly:
 1. Generate QR Codes
 2. Output as PNG
@@ -26,6 +27,7 @@ qrcode-rust https://github.com/kennytm/qrcode-rust
 
 Libraries:
 qrcode-rust https://github.com/kennytm/qrcode-rust
+image https://github.com/image-rs/image
 png https://github.com/image-rs/image-png
 gif https://github.com/image-rs/image-gif
 mp4-rust https://github.com/alfg/mp4-rust
@@ -55,8 +57,8 @@ Notes:
 • Another lazy method is to have the QR code only be valid at certain points in the animation and let the auto-scan feature of devices grab a valid frame at some point.
   └─ Might have to make sure we aren't accidentally relying on this too much.
 • QR codes can be colored, they tend to want black to be replaced by colors and leave white alone.
-• MicroQR codes don't seem to be widly supported.
-• Inverting QR codes is not widely supported.
+• MicroQR codes don't seem to be widely supported.
+• Inverting QR codes appears to be widely supported.
 • Mirroring QR codes is not widely supported.
 • Rotating QR codes is perfectly fine.
 
