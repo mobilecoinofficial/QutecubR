@@ -29,7 +29,7 @@ Personal Goals:
 • Become more familiar with rust.  
 • Get MP4 video output from rust.  
 
-Notes:
+Notes:  
 • We should be able to work at any common (LMQH) error correction level.  
 • Using MP4 would be a better choice than gif given modern platforms.  
   └─ Maybe can fuck with frames, ie: only one I-frame at start?  
