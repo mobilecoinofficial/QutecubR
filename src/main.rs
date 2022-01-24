@@ -1,25 +1,37 @@
+
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
 use qrcode::QrCode;
 
 use image;
 use std::env;
 
-fn main() {
-    
-    // for now "API" is CLI only, format of:
-    //         aqrr stringtoencode inputfile outputfile
-    // no options or anything yet, autoscales to the size of output file based on string length
+#[derive(Debug, Serialize, Deserialize)]
+struct Settings {
+    code: String,
+    input_filename: String,
+    output_filename: String,
+}
 
-    // deal with arguments
-    // TODO: make a proper API
-    let text_input = env::args().nth(1)
-        .expect("Expected a code to output.");
-    let path_input = env::args().nth(2)
-        .expect("Expected an input file.");
-    let path_output = env::args().nth(3)
-        .expect("Expected an output file.");
+
+fn main() {
+    // proposed API: single JSON blob with parameters (JSON-RPC)
+    // can use serde_json for this ^^
+
+    // we'll pretend we were passed this
+    let testjson = r#"
+            {
+                "code": "https://mobilecoin.com/",
+                "input_filename": "data/input.png",
+                "output_filename": "data/output.png"
+            }"#;
+    // should put file in JSON?
+
+    let settings: Settings = serde_json::from_str(testjson).unwrap();
+    println!("{:?}", settings);
 
     // generate QR code
-    let code = QrCode::new(text_input).unwrap();
+    let code = QrCode::new(settings.code).unwrap();
     
     let string = code.render::<char>()
         .quiet_zone(false)
@@ -69,11 +81,11 @@ fn main() {
 
     // grab base image and resize to our preferred output size
     // TODO: maintain input/output aspect ratio and center
-    let baseimg = image::open(path_input).unwrap();
+    let baseimg = image::open(settings.input_filename).unwrap();
     let mut resized = baseimg.resize(imgwidth, imgwidth, image::imageops::FilterType::CatmullRom);
 
     // throw overlay on the base image... this fundamentally what we're doing here
     image::imageops::overlay(&mut resized, &qr_mask, 0, 0);
 
-    resized.save(path_output).unwrap();	
+    resized.save(settings.output_filename).unwrap();	
 }
