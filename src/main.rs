@@ -13,24 +13,22 @@ struct Settings {
     output_filename: String,
 }
 
+// would like to be drop-in replacement from https://github.com/mobilecoinofficial/forest/blob/main/mobfriend/mobfriend.py#L51
 
 fn main() {
-    // proposed API: single JSON blob with parameters (JSON-RPC)
-    // can use serde_json for this ^^
-
-    // we'll pretend we were passed this
+    // TODO: take JSON settings as argument
+    // we'll pretend we were passed this for now
     let testjson = r#"
             {
                 "code": "https://mobilecoin.com/",
                 "input_filename": "data/input.png",
                 "output_filename": "data/output.png"
             }"#;
-    // should put file in JSON?
 
     let settings: Settings = serde_json::from_str(testjson).unwrap();
     println!("{:?}", settings);
 
-    // generate QR code
+    // generate QR code ============================================
     let code = QrCode::new(settings.code).unwrap();
     
     let string = code.render::<char>()
