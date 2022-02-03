@@ -7,35 +7,66 @@ use image;
 use std::env;
 
 #[derive(Debug, Serialize, Deserialize)]
-struct Settings {
-    code: String,
+struct Blob {
+    text: String,
+    colorized: bool,
+    version: i16,
+    level: String,
+    contrast: f32,
+    brightness: f32,
     input_filename: String,
     output_filename: String,
 }
 
-// would like to be drop-in replacement from https://github.com/mobilecoinofficial/forest/blob/main/mobfriend/mobfriend.py#L51
+// would like to be drop-in replacement from 
+// https://github.com/mobilecoinofficial/forest/blob/main/mobfriend/mobfriend.py#L118
 
 fn main() {
     // TODO: take JSON settings as argument
     // we'll pretend we were passed this for now
     let testjson = r#"
             {
-                "code": "https://mobilecoin.com/",
+                "text": "https://mobilecoin.com/",
+                "colorized": true,
+                "version": 1,
+                "level": "H",
+                "contrast": 1.0,
+                "brightness": 1.0,
                 "input_filename": "data/input.png",
                 "output_filename": "data/output.png"
             }"#;
 
-    let settings: Settings = serde_json::from_str(testjson).unwrap();
-    println!("{:?}", settings);
+    // TODO: proper default values
+    let blob: Blob = serde_json::from_str(testjson).unwrap();
 
-    // generate QR code ============================================
-    let code = QrCode::new(settings.code).unwrap();
+    // pick level, default H
+    let qrlevel = match blob.level.as_str() {
+       "L" => qrcode::EcLevel::L,
+       "M" => qrcode::EcLevel::M,
+       "Q" => qrcode::EcLevel::Q,
+       "H" => qrcode::EcLevel::H,
+       _ => qrcode::EcLevel::H,
+    };
+
+    // pick version, up to 40
+    let qrversion = match blob.version {
+        v if v < 1 => qrcode::Version::Normal(1),
+        v if v > 40 => qrcode::Version::Normal(40),
+        _ => qrcode::Version::Normal(blob.version),
+    };
+
+    // TODO: minimum version selection check
+    // use qrcode optimize to find min version
+    // and make sure we're between that and 40
+    // also probably that it fits in within 40
     
-    let string = code.render::<char>()
-        .quiet_zone(false)
-        .module_dimensions(2, 1)
-        .build();
-    println!("{}", string);
+    // TODO: brightness and contrast are currently unused, likely no bounds check needed
+
+    // generate QR code =======================================================
+    // TODO: actually use provided QR code version
+    let code = QrCode::with_error_correction_level(blob.text, qrlevel).unwrap();
+    //let code = QrCode::with_version(blob.text, qrversion, qrlevel).unwrap();
+    //let code = QrCode::new(blob.text).unwrap();
 	
     let qrcolors = code.to_colors();
 
@@ -79,11 +110,11 @@ fn main() {
 
     // grab base image and resize to our preferred output size
     // TODO: maintain input/output aspect ratio and center
-    let baseimg = image::open(settings.input_filename).unwrap();
+    let baseimg = image::open(blob.input_filename).unwrap();
     let mut resized = baseimg.resize(imgwidth, imgwidth, image::imageops::FilterType::CatmullRom);
 
     // throw overlay on the base image... this fundamentally what we're doing here
     image::imageops::overlay(&mut resized, &qr_mask, 0, 0);
 
-    resized.save(settings.output_filename).unwrap();	
+    resized.save(blob.output_filename).unwrap();	
 }
