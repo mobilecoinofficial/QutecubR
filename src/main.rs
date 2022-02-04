@@ -82,7 +82,10 @@ fn main() {
     let imgwidth: u32 = (code.width() * imgscale) as u32;
 
     // make the QR mask =======================================================
-    let mut qr_mask = image::ImageBuffer::new(imgwidth, imgwidth);
+    let mut qr_background: image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>>
+                                    = image::ImageBuffer::new(imgwidth, imgwidth);
+    let mut qr_mask: image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>>
+                                    = image::ImageBuffer::new(imgwidth, imgwidth);
 
     for x in 0..imgwidth {
         for y in 0..imgwidth {
@@ -109,6 +112,7 @@ fn main() {
             
             // TODO: generate mask in a way that isn't embarassing
             qr_mask.put_pixel(x,y,image::Rgba([color[0], color[1], color[2], alpha]));
+            qr_background.put_pixel(x,y,image::Rgba([color[0], color[1], color[2], 255]));
         }
     }
 
@@ -116,20 +120,22 @@ fn main() {
 
     // grab base image and resize to our preferred output size
     // TODO: maintain input/output aspect ratio and center
-    let baseimg = image::open(blob.input_filename).unwrap();
+    let mut baseimg = image::open(blob.input_filename).unwrap();
+
     // TODO: check for alpha to ignore chromakey
     // TODO: implement chromakey
+    
     let resized = baseimg.resize(imgwidth, imgwidth, image::imageops::FilterType::CatmullRom);
 
     // TODO: quiet space around image
     // TODO: message below QR code
-    // QR code <- image <- QR dot mask
     let quietspace: u32 = 32;
     let messagespace: u32 = 55;
 
+    // QR code <- image <- QR dot mask
     let mut output_image = 
             image::ImageBuffer::new(imgwidth + quietspace, imgwidth + quietspace + messagespace);
-    image::imageops::overlay(&mut output_image, &qr_mask, quietspace/2, quietspace/2);
+    image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2);
     image::imageops::overlay(&mut output_image, &resized, quietspace/2, quietspace/2);
     image::imageops::overlay(&mut output_image, &qr_mask, quietspace/2, quietspace/2);
 
