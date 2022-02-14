@@ -1,10 +1,8 @@
 
 use serde::{Deserialize, Serialize};
-use serde_json::Result;
 use qrcode::QrCode;
 
 use image;
-use std::env;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Blob {
@@ -22,11 +20,22 @@ struct Blob {
 
 // would like to be drop-in replacement from 
 // https://github.com/mobilecoinofficial/forest/blob/main/mobfriend/mobfriend.py#L118
-// also would like to do the typing notification thing while it's processing :3
+// Specific use case is image with flat color background uploaded to bot to be turned into QR code
+// ( also would like to do the typing notification thing while it's processing :3 )
+
+
+//   Feature parity for current use: 
+// Chromakey backgrounds color stuff
+// 1000x1000 qr code size
+// Works with bad aspect ratio files
+
+// notes, default rn is H and data is about 160 alphanumeric characters? (~level 6)
+
+
 
 fn main() {
-    // TODO: take JSON blob as argument
-    // TODO: change JSON blob to JSON RPC
+    // TODO: take JSON RPC as input
+    // write to /tmp
     // we'll pretend we were passed this for now:
     let testjson = r#"
             {
@@ -67,6 +76,7 @@ fn main() {
     // also probably that it fits in within 40
     
     // TODO: brightness and contrast are currently unused, likely no bounds check needed
+    // contrast and brightness will be used to tune dithering/greyscale later
 
     // generate QR code =======================================================
     // TODO: actually use provided QR code version
@@ -78,7 +88,7 @@ fn main() {
 
     // TODO: make "modules" size adjustable
     // TODO: tweak module size, etc to be more readable
-    let imgscale: usize = 6;
+    let imgscale: usize = 8;
     let imgwidth: u32 = (code.width() * imgscale) as u32;
 
     // make the QR mask =======================================================
@@ -102,7 +112,8 @@ fn main() {
             // NOTE: ALIGNMENT_PATTERN_POSITIONS in qrcode has useful info for cleaning
             let mut alpha: u8 = 0;
             
-            if (x as i32/2i32)%3 == 1 && (y as i32/2)%3 == 1 {alpha = 255 } // centers
+            if (x as i32/2i32)%4 == 1 || (y as i32/2)%4 == 1 {alpha = 255 } // centers
+            if (x as i32/2i32)%4 == 2 || (y as i32/2)%4 == 2 {alpha = 255 } // centers
             if modulex == 6 || moduley == 6 { alpha = 255 } // timing pattern
             if modulex < 6 && moduley < 6 { alpha = 255 } // upper left
             if modulex >= code.width()-7 && moduley < 6 { alpha = 255 } // upper left
@@ -133,11 +144,22 @@ fn main() {
     let messagespace: u32 = 55;
 
     // QR code <- image <- QR dot mask
+    let totalwidth = imgwidth + quietspace;
+    let totalheight = imgwidth + quietspace + messagespace;
     let mut output_image = 
-            image::ImageBuffer::new(imgwidth + quietspace, imgwidth + quietspace + messagespace);
+            image::ImageBuffer::new(totalwidth, totalheight);
+
+    // give background color
+    for x in 0..totalwidth {
+        for y in 0..totalheight {
+            output_image.put_pixel(x,y,image::Rgba([44, 44, 44, 255]));
+        }
+    }
+
     image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2);
     image::imageops::overlay(&mut output_image, &resized, quietspace/2, quietspace/2);
     image::imageops::overlay(&mut output_image, &qr_mask, quietspace/2, quietspace/2);
+    image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2);
 
     output_image.save(blob.output_filename).unwrap();	
 }
