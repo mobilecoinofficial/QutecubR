@@ -15,6 +15,9 @@ Buildup is roughly:
 8. Make it Fast
 
 
+
+
+
 Possible Extensions:
 • Can do error correction tricks.
 

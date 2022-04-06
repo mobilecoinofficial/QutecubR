@@ -1,4 +1,4 @@
-# datadots
+# QutecubR
 A fancy QR code generator in Rust which aims to be performant, flexible, and configurable enough to use in an automated fashion.
 
 # Usage
