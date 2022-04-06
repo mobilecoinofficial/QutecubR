@@ -1,8 +1,8 @@
 # QutecubR
 A fancy QR code generator in Rust which aims to be performant, flexible, and configurable enough to use in an automated fashion.
 
-# QutecubR
-datadots takes a JSON RPC blob with the following fields as an arguement:
+# Usage
+QutecubR takes a JSON RPC blob with the following fields as an arguement:
 
 Libraries (for now):  
 qrcode-rust (Apache) https://github.com/kennytm/qrcode-rust  
