@@ -31,8 +31,6 @@ struct Blob {
 
 // notes, default rn is H and data is about 160 alphanumeric characters? (~level 6)
 
-
-
 fn main() {
     // TODO: take JSON RPC as input
     // write to /tmp
@@ -65,8 +63,8 @@ fn main() {
 
     // pick version, up to 40
     let qrversion = match blob.version {
-        v if v < 1 => qrcode::Version::Normal(1),
-        v if v > 40 => qrcode::Version::Normal(40),
+        min if min < 1 => qrcode::Version::Normal(1),
+        max if max > 40 => qrcode::Version::Normal(40),
         _ => qrcode::Version::Normal(blob.version),
     };
 
@@ -88,6 +86,7 @@ fn main() {
 
     // TODO: make "modules" size adjustable
     // TODO: tweak module size, etc to be more readable
+    // NOTE: aiming for ~1000x1000px 
     let imgscale: usize = 8;
     let imgwidth: u32 = (code.width() * imgscale) as u32;
 
@@ -99,6 +98,7 @@ fn main() {
 
     for x in 0..imgwidth {
         for y in 0..imgwidth {
+            // TODO: make alpha be floats instead of discrete?
             let modulex = (x as usize)/imgscale;
             let moduley = (y as usize)/imgscale;
             let index: usize = modulex + moduley*(code.width() as usize);
@@ -107,19 +107,29 @@ fn main() {
             let color = if input == qrcode::Color::Dark { image::Rgb([0,0,0]) } 
                         else { image::Rgb([255,255,255])};
             
-            // make the "modules" transparent on outsides for the overlay to work
-            // keeping alignement and timing patterns opaque until we can test properly
-            // NOTE: ALIGNMENT_PATTERN_POSITIONS in qrcode has useful info for cleaning
             let mut alpha: u8 = 0;
             
-            if (x as i32/2i32)%4 == 1 || (y as i32/2)%4 == 1 {alpha = 255 } // centers
-            if (x as i32/2i32)%4 == 2 || (y as i32/2)%4 == 2 {alpha = 255 } // centers
+            // Centers of all Modules
+            // we're making the outisdes of these transparent to show image below
+            // we want to map |00001110000| kind of shape for mask
+            // % is bad, we want to do vaguely smoothstep mirror
+            // we need qr code start x and y (0, 0) and how wide it is (imgwidth)
+            // mod number of pixels... then do cutoff
+            // roughly: alpha value = some function on the distance from the center of the current module
+            if (x as i32/2i32)%4 == 1 || (y as i32/2)%4 == 1 {alpha = 255 }
+            if (x as i32/2i32)%4 == 2 || (y as i32/2)%4 == 2 {alpha = 255 }
+
+            // Timing patterns etc.
+            // some subset of these things are required for the code to be read
+            // TODO: test subests to see what we can leave out
             if modulex == 6 || moduley == 6 { alpha = 255 } // timing pattern
             if modulex < 6 && moduley < 6 { alpha = 255 } // upper left
             if modulex >= code.width()-7 && moduley < 6 { alpha = 255 } // upper left
             if modulex < 6 && moduley >= code.width()-7 { alpha = 255 } // upper left
+            // NOTE: ALIGNMENT_PATTERN_POSITIONS in qrcode has useful info for cleaning
             if modulex > code.width() - 10 && modulex < code.width() - 4
                 && moduley > code.width() - 10 && moduley < code.width() - 4 { alpha = 255 }
+            // TODO: add the version info, etc to the patterns we leave in
             
             // TODO: generate mask in a way that isn't embarassing
             qr_mask.put_pixel(x,y,image::Rgba([color[0], color[1], color[2], alpha]));
