@@ -32,6 +32,9 @@ struct Blob {
 // notes, default rn is H and data is about 160 alphanumeric characters? (~level 6)
 
 fn main() {
+    // should be entering from mobfriend ~111: _actually_build_wait_and_send_qr()
+    // https://github.com/mobilecoinofficial/forest/blob/main/mobfriend/mobfriend.py#L111
+
     // TODO: take JSON RPC as input
     // write to /tmp
     // we'll pretend we were passed this for now:
@@ -116,8 +119,11 @@ fn main() {
             // we need qr code start x and y (0, 0) and how wide it is (imgwidth)
             // mod number of pixels... then do cutoff
             // roughly: alpha value = some function on the distance from the center of the current module
-            if (x as i32/2i32)%4 == 1 || (y as i32/2)%4 == 1 {alpha = 255 }
-            if (x as i32/2i32)%4 == 2 || (y as i32/2)%4 == 2 {alpha = 255 }
+            // if (x as i32/2i32)%4 == 1 || (y as i32/2)%4 == 1 {alpha = 255 }
+            // if (x as i32/2i32)%4 == 2 || (y as i32/2)%4 == 2 {alpha = 255 }
+            // SMOOTHstep: min( 1,max( 0,(x-a)/(b-a) ) )
+
+
 
             // Timing patterns etc.
             // some subset of these things are required for the code to be read
