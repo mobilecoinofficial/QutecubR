@@ -11,3 +11,4 @@ Cargo.lock
 
 # ignore output, maybe should ignore data
 data/output.*
+data/output.png

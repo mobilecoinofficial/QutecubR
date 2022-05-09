@@ -39,7 +39,7 @@ fn main() {
     let testjson = r#"
             {
                 "encoded_text": "https://mobilecoin.com/",
-                "message_text": "Check out MobileCoin!",
+                "message_text": "",
                 "colorized": true,
                 "chromakey": true,
                 "version": 1,
@@ -98,39 +98,37 @@ fn main() {
 
     for x in 0..qrcodepx {
         for y in 0..qrcodepx {
-            // TODO: make alpha be floats instead of discrete?
-            let modulex = (x as usize)/modulepx;
-            let moduley = (y as usize)/modulepx;
-            let index: usize = modulex + moduley*(code.width() as usize);
-            let input = qrcolors[index];
-
-            let color = if input == qrcode::Color::Dark { image::Rgb([0,0,0]) } 
+            let mx = (x as usize)/modulepx; // module x
+            let my = (y as usize)/modulepx; // module y
+            let color = if qrcolors[mx + my*(code.width() as usize)]
+                            == qrcode::Color::Dark { image::Rgb([0,0,0]) } 
                         else { image::Rgb([255,255,255])};
             
-            // Making the Center of all modules opaque
-            // using smoothstep to make it resolution independent
             // Warning: maths.
+            // Making the center of modules opaque and leaving the rest trans
+            // (using smoothstep to make it resolution independent)
+            
             // we need:  left side of module, Right side of module, pixel center
             // (and same for the vertical)
             // roughly: alpha value = some function on the distance from the center of the current module
             // alpha = smoothstep(x);
-            let ch: f32 = 0.4; // horizontal pixel center relative to center of module
-            let cv: f32 = 0.6; // vertical pixel center relative to center of module
-            let ah = ((255 as f32) * (1.0 - smoothstep((ch-0.5).abs(), 0.4, 0.5))) as u8;
-            let av = ((255 as f32) * (1.0 - smoothstep((cv-0.5).abs(), 0.4, 0.5))) as u8;
-            let mut alpha: u8 = ah.max(av); // just get the max alpha of these two
+            let ch: f32 = ((x as f32)/(modulepx as f32))%1.0; // horizontal pixel center relative to center of module
+            let cv: f32 = ((y as f32)/(modulepx as f32))%1.0; // vertical pixel center relative to center of module
+            let ah = ((255 as f32) * (smoothstep((0.5-ch).abs(), 0.15, 0.1))) as u8;
+            let av = ((255 as f32) * (smoothstep((0.5-cv).abs(), 0.15, 0.1))) as u8;
+            let mut alpha: u8 = ah.min(av); // just get the min alpha of these two
 
             // Special Cases for timing patterns
             // TODO: test subests to see what subset we can comfortably leave out
-            if modulex == 6 || moduley == 6 { alpha = 255 }       // timing pattern
-            if modulex < 6 && moduley < 6 { alpha = 255 }               // upper left
-            if modulex >= code.width()-7 && moduley < 6 { alpha = 255 } // lower left
-            if modulex < 6 && moduley >= code.width()-7 { alpha = 255 } // upper right
+            //if mx == 6 || my == 6 { alpha = 255 }       // timing pattern
+            if mx < 6 && my < 6 { alpha = 255 }               // upper left
+            if mx >= code.width()-7 && my < 6 { alpha = 255 } // lower left
+            if mx < 6 && my >= code.width()-7 { alpha = 255 } // upper right
             
             // TODO: add the version info, etc to the patterns we leave in
             // NOTE: ALIGNMENT_PATTERN_POSITIONS in qrcode has useful information
-            if modulex > code.width() - 10 && modulex < code.width() - 4
-                && moduley > code.width() - 10 && moduley < code.width() - 4 { alpha = 255 }            
+            if mx > code.width() - 10 && mx < code.width() - 4
+                && my > code.width() - 10 && my < code.width() - 4 { alpha = 255 }
             
             // TODO: generate mask(s) in a way that isn't embarassing
             qr_mask.put_pixel(x, y, image::Rgba([color[0], color[1], color[2], alpha]));
@@ -169,11 +167,9 @@ fn main() {
         }
     }
 
-    // TODO: make a comment about why this is 4 and not 3, and the order
-    image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2); // 
-    image::imageops::overlay(&mut output_image, &ii_resized, quietspace/2, quietspace/2); //
-    image::imageops::overlay(&mut output_image, &qr_mask, quietspace/2, quietspace/2); // 
-    //image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2); //
+    image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2);
+    image::imageops::overlay(&mut output_image, &ii_resized, quietspace/2, quietspace/2);
+    image::imageops::overlay(&mut output_image, &qr_mask, quietspace/2, quietspace/2); 
 
     output_image.save(settings.output_filename).unwrap();
 }
