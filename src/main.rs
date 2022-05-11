@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize}; // for JSON
 use qrcode::QrCode;    // for QR code generation
 use image;    // for image operations and output
+use std::time::{Duration, Instant};
 
 // JSON blob format we're expecting as input
 #[derive(Debug, Serialize, Deserialize)]
@@ -38,7 +39,7 @@ fn main() {
     // We'll pretend we were passed this for now:
     let testjson = r#"
             {
-                "encoded_text": "https://mobilecoin.com/",
+                "encoded_text": "https://signal.me/#p/+12692304655",
                 "message_text": "",
                 "colorized": true,
                 "chromakey": true,
@@ -46,10 +47,11 @@ fn main() {
                 "level": "H",
                 "contrast": 1.0,
                 "brightness": 1.0,
-                "input_filename": "data/input.png",
+                "input_filename": "data/whispr_avatar.png",
                 "output_filename": "data/output.png"
             }"#;
     
+    // Parse the JSON =========================================================
     let settings: Blob = serde_json::from_str(testjson).unwrap();
 
     // pick level, default H
@@ -84,11 +86,10 @@ fn main() {
     let qrcolors = code.to_colors(); // colors in this case is pixels?
 
     // Render the QR mask =====================================================
-
     // TODO: make "modules" size adjustable
     // TODO: tweak module size, etc to be more readable
     // NOTE: aiming for ~1000x1000px 
-    let modulepx: usize = 8;
+    let modulepx: usize = 16;
     let qrcodepx: u32 = (code.width() * modulepx) as u32;
 
     let mut qr_background: image::ImageBuffer<image::Rgba<u8>, std::vec::Vec<u8>>
@@ -114,16 +115,18 @@ fn main() {
             // alpha = smoothstep(x);
             let ch: f32 = ((x as f32)/(modulepx as f32))%1.0; // horizontal pixel center relative to center of module
             let cv: f32 = ((y as f32)/(modulepx as f32))%1.0; // vertical pixel center relative to center of module
-            let ah = ((255 as f32) * (smoothstep((0.5-ch).abs(), 0.15, 0.1))) as u8;
-            let av = ((255 as f32) * (smoothstep((0.5-cv).abs(), 0.15, 0.1))) as u8;
+            let ta = 0.22; // tuning A
+            let tb = 0.06; // tuning B
+            let ah = ((255 as f32) * (smoothstep((0.5-ch).abs(), ta, ta-tb))) as u8;
+            let av = ((255 as f32) * (smoothstep((0.5-cv).abs(), ta, ta-tb))) as u8;
             let mut alpha: u8 = ah.min(av); // just get the min alpha of these two
 
             // Special Cases for timing patterns
             // TODO: test subests to see what subset we can comfortably leave out
-            //if mx == 6 || my == 6 { alpha = 255 }       // timing pattern
-            if mx < 6 && my < 6 { alpha = 255 }               // upper left
-            if mx >= code.width()-7 && my < 6 { alpha = 255 } // lower left
-            if mx < 6 && my >= code.width()-7 { alpha = 255 } // upper right
+            if mx == 6 || my == 6 { alpha = 255 }       // timing pattern
+            if mx <= 6 && my <= 6 { alpha = 255 }               // upper left
+            if mx >= code.width()-7 && my <= 6 { alpha = 255 } // upper right
+            if mx <= 6 && my >= code.width()-7 { alpha = 255 } // lower left
             
             // TODO: add the version info, etc to the patterns we leave in
             // NOTE: ALIGNMENT_PATTERN_POSITIONS in qrcode has useful information
@@ -131,45 +134,44 @@ fn main() {
                 && my > code.width() - 10 && my < code.width() - 4 { alpha = 255 }
             
             // TODO: generate mask(s) in a way that isn't embarassing
+            //alpha = 255;
             qr_mask.put_pixel(x, y, image::Rgba([color[0], color[1], color[2], alpha]));
             qr_background.put_pixel(x, y, image::Rgba([color[0], color[1], color[2], 255]));
         }
     }
 
-    // TODO: Add space for message text... implies font management, bitmap generation?
-    // NOTE: using fonts is a tricky copyright thing, potentially.
-    //          we got around this in games by rendering fonts into bitmaps offline then using those
-
     // Load image to be composited ============================================
-    // TODO: maintain input/output aspect ratio and center
-    
-
+    // TODO: implement chromakey (might want to keep the color as background color)
     // TODO: check for alpha to ignore chromakey
-    // TODO: implement chromakey 
-    let mut inputimg = image::open(settings.input_filename).unwrap();
-    let ii_resized = inputimg.resize(qrcodepx, qrcodepx, image::imageops::FilterType::CatmullRom);
+    
+    // TODO: maintain input/output aspect ratio
+    let ii_resized = image::open(settings.input_filename).unwrap()
+            .resize(qrcodepx, qrcodepx, image::imageops::FilterType::CatmullRom);
 
-    // TODO: quiet space around image
-    // TODO: message below QR code
-    let quietspace: u32 = 32;
-    let messagespace: u32 = 55;
+    println!("Resolution: {}x{}", qrcodepx, qrcodepx);
+
+    let quietspace: u32 = (modulepx as u32)*4; // pixel skirt beyond each edge of QR
+    let messagespace: u32 = 0; // additional space below image
+    // TODO: actually render text messages below QR code
+    // NOTE: using fonts is a tricky copyright thing, potentially.
+    //   we got around this in games by rendering fonts into bitmaps offline then using those
 
     // QR code <- image <- QR dot mask
-    let totalwidth = qrcodepx + quietspace;
-    let totalheight = qrcodepx + quietspace + messagespace;
-    let mut output_image = 
-            image::ImageBuffer::new(totalwidth, totalheight);
+    let totalwidth = qrcodepx + quietspace*2;
+    let totalheight = qrcodepx + quietspace*2 + messagespace;
+    let mut output_image =  image::ImageBuffer::new(totalwidth, totalheight);
 
     // give background color
     for x in 0..totalwidth {
         for y in 0..totalheight {
-            output_image.put_pixel(x,y,image::Rgba([44, 44, 44, 255]));
+            //output_image.put_pixel(x,y,image::Rgba([44, 44, 44, 255]));
+            output_image.put_pixel(x,y,image::Rgba([58, 118, 240, 255]));
         }
     }
 
-    image::imageops::overlay(&mut output_image, &qr_background, quietspace/2, quietspace/2);
-    image::imageops::overlay(&mut output_image, &ii_resized, quietspace/2, quietspace/2);
-    image::imageops::overlay(&mut output_image, &qr_mask, quietspace/2, quietspace/2); 
+    image::imageops::overlay(&mut output_image, &qr_background, quietspace, quietspace);
+    image::imageops::overlay(&mut output_image, &ii_resized, quietspace, quietspace);
+    image::imageops::overlay(&mut output_image, &qr_mask, quietspace, quietspace); 
 
     output_image.save(settings.output_filename).unwrap();
 }
